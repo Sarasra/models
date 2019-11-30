@@ -189,6 +189,13 @@ class CapsuleModel(model.Model):
           data_format='NCHW')
       pre_activation = tf.nn.bias_add(conv1, biases, data_format='NCHW')
       relu1 = tf.nn.relu(pre_activation, name=scope.name)
+
+      with tf.name_scope('conv1'):
+        with tf.name_scope('pre_activation'):
+          utility.variable_summaries(pre_activation)
+        with tf.name_scope('relu'):
+          utility.variable_summaries(relu1)
+          
       if self._hparams.verbose:
         tf.summary.histogram('activation', relu1)
     hidden1 = tf.expand_dims(relu1, 1)

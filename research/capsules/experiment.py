@@ -179,9 +179,20 @@ def train_experiment(session, result, writer, last_step, max_steps, saver,
   step = 0
   for i in range(last_step, max_steps):
     step += 1
-    summary, _ = session.run([result.summary, result.train_op])
-    writer.add_summary(summary, i)
+    if i % 100 == 0:
+      run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+      run_metadata = tf.RunMetadata()
+      summary, _ = session.run([result.summary, result.train_op], options=run_options, run_metadata=run_metadata)
+      writer.add_run_metadata(run_metadata, 'step%03d' % i)
+      writer.add_summary(summary, i)
+    else:
+      summary, _ = session.run([result.summary, result.train_op])
+      writer.add_summary(summary, i)
+
+    writer.flush()
+
     if (i + 1) % save_step == 0:
+      print('Step: ' + str(i))
       saver.save(
           session, os.path.join(summary_dir, 'model.ckpt'), global_step=i + 1)
 
