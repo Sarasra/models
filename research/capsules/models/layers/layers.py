@@ -24,6 +24,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import utility
 import tensorflow as tf
 
 from models.layers import variables
@@ -320,6 +321,12 @@ def conv_slim_capsule(input_tensor,
     votes, votes_shape, input_shape = _depthwise_conv3d(
         input_tensor, kernel, input_dim, output_dim, input_atoms, output_atoms,
         stride, padding)
+
+    with tf.name_scope(layer_name):
+      with tf.name_scope('kernel'):
+        utility.variable_summaries(kernel)
+      with tf.name_scope('biases'):
+        utility.variable_summaries(biases)
 
     with tf.name_scope('routing'):
       logit_shape = tf.stack([

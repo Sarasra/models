@@ -10,9 +10,9 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--data_dir", "/home/donglin/models/research/capsules/traindata/mnist_data", 
+            "args": ["--data_dir", "${workspaceFolder}/download/traindata/mnist_data/", 
                 "--max_steps", "300000",
-                "--summary_dir", "/home/donglin/models/research/capsules/summary"]
+                "--summary_dir", "${workspaceFolder}/summary"]
         }
     ]
 }

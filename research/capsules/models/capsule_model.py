@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import utility
 from models import model
 from models.layers import layers
 from models.layers import variables
@@ -191,10 +192,10 @@ class CapsuleModel(model.Model):
       relu1 = tf.nn.relu(pre_activation, name=scope.name)
 
       with tf.name_scope('conv1'):
-        with tf.name_scope('pre_activation'):
-          utility.variable_summaries(pre_activation)
-        with tf.name_scope('relu'):
-          utility.variable_summaries(relu1)
+        with tf.name_scope('kernel'):
+          utility.variable_summaries(kernel)
+        with tf.name_scope('biases'):
+          utility.variable_summaries(biases)
           
       if self._hparams.verbose:
         tf.summary.histogram('activation', relu1)

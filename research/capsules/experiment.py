@@ -177,6 +177,7 @@ def train_experiment(session, result, writer, last_step, max_steps, saver,
     save_step: How often to save the model ckpt.
   """
   step = 0
+  writer.add_graph(session.graph)
   for i in range(last_step, max_steps):
     step += 1
     if i % 100 == 0:
