@@ -176,6 +176,12 @@ def capsule(input_tensor,
     weights = variables.weight_variable(
         [input_dim, input_atoms, output_dim * output_atoms])
     biases = variables.bias_variable([output_dim, output_atoms])
+
+    with tf.name_scope('weights'):
+      utility.variable_summaries(weights)
+    with tf.name_scope('biases'):
+      utility.variable_summaries(biases)
+
     with tf.name_scope('Wx_plus_b'):
       # Depthwise matmul: [b, d, c] ** [d, c, o_c] = [b, d, o_c]
       # To do this: tile input, do element-wise multiplication and reduce
@@ -322,11 +328,11 @@ def conv_slim_capsule(input_tensor,
         input_tensor, kernel, input_dim, output_dim, input_atoms, output_atoms,
         stride, padding)
 
-    with tf.name_scope(layer_name):
-      with tf.name_scope('kernel'):
-        utility.variable_summaries(kernel)
-      with tf.name_scope('biases'):
-        utility.variable_summaries(biases)
+    #with tf.name_scope(layer_name):
+    with tf.name_scope('kernel'):
+      utility.variable_summaries(kernel)
+    with tf.name_scope('biases'):
+      utility.variable_summaries(biases)
 
     with tf.name_scope('routing'):
       logit_shape = tf.stack([

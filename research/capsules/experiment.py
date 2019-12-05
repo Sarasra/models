@@ -22,6 +22,7 @@ from __future__ import print_function
 import os
 import sys
 import time
+import datetime
 
 import numpy as np
 import tensorflow as tf
@@ -190,8 +191,6 @@ def train_experiment(session, result, writer, last_step, max_steps, saver,
       summary, _ = session.run([result.summary, result.train_op])
       writer.add_summary(summary, i)
 
-    writer.flush()
-
     if (i + 1) % save_step == 0:
       print('Step: ' + str(i))
       saver.save(
@@ -326,10 +325,10 @@ def train(hparams, summary_dir, num_gpus, model_type, max_steps, save_step,
     dataset: Name of the dataset for the experiments.
     validate: If set, use training-validation set for training.
   """
-  summary_dir += '/train/'
+  summary_dir += '/train/' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
   with tf.Graph().as_default():
     # Build model
-    features = get_features('train', 128, num_gpus, data_dir, num_targets,
+    features = get_features('train', 64, num_gpus, data_dir, num_targets,
                             dataset, validate)
     model = models[model_type](hparams)
     result, _ = model.multi_gpu(features, num_gpus)
@@ -556,7 +555,7 @@ def default_hparams():
       padding='VALID',
       remake=True,
       routing=3,
-      verbose=False,
+      verbose=True,
   )
 
 
