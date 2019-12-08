@@ -23,6 +23,7 @@ import os
 import sys
 import time
 import datetime
+from tensorflow.python.client import timeline
 
 import numpy as np
 import tensorflow as tf
@@ -177,24 +178,30 @@ def train_experiment(session, result, writer, last_step, max_steps, saver,
     summary_dir: The directory to save the model in it.
     save_step: How often to save the model ckpt.
   """
-  step = 0
   writer.add_graph(session.graph)
   for i in range(last_step, max_steps):
-    step += 1
+    run_options = None
+    run_metadata = None
+
     if i % 100 == 0:
       run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
       run_metadata = tf.RunMetadata()
-      summary, _ = session.run([result.summary, result.train_op], options=run_options, run_metadata=run_metadata)
+      
+    summary, _ = session.run([result.summary, result.train_op], options=run_options, run_metadata=run_metadata)
+    writer.add_summary(summary, i)
+
+    if i % 100 == 0:
       writer.add_run_metadata(run_metadata, 'step%03d' % i)
-      writer.add_summary(summary, i)
-    else:
-      summary, _ = session.run([result.summary, result.train_op])
-      writer.add_summary(summary, i)
+      tl = timeline.Timeline(run_metadata.step_stats)
+      ctf = tl.generate_chrome_trace_format()
+      with open(os.path.join(summary_dir, 'timeline step{}.json'.format(i)), 'w') as f:
+        f.write(ctf)
 
     if (i + 1) % save_step == 0:
       print('Step: ' + str(i))
       saver.save(
           session, os.path.join(summary_dir, 'model.ckpt'), global_step=i + 1)
+
 
 
 def load_eval(saver, session, load_dir):
@@ -229,11 +236,24 @@ def eval_experiment(session, result, writer, last_step, max_steps, **kwargs):
   """
   del kwargs
 
+  writer.add_graph(session.graph)
+
   total_correct = 0
   total_almost = 0
-  for _ in range(max_steps):
-    summary_i, correct, almost = session.run(
-        [result.summary, result.correct, result.almost])
+  for step in range(max_steps):
+    if (step + 1) % 10 == 0:
+      run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+      run_metadata = tf.RunMetadata()
+      summary_i, correct, almost = session.run(
+        [result.summary, result.correct, result.almost], options=run_options, run_metadata=run_metadata)
+      writer.add_run_metadata(run_metadata, 'step%03d' % step)
+      tl = timeline.Timeline(run_metadata.step_stats)
+      ctf = tl.generate_chrome_trace_format()
+      with open('timeline'+'step%03d' % step +'.json', 'w') as f:
+        f.write(ctf)
+    else:
+      summary_i, correct, almost = session.run(
+          [result.summary, result.correct, result.almost])
     total_correct += correct
     total_almost += almost
 
@@ -325,7 +345,7 @@ def train(hparams, summary_dir, num_gpus, model_type, max_steps, save_step,
     dataset: Name of the dataset for the experiments.
     validate: If set, use training-validation set for training.
   """
-  summary_dir += '/train/' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  summary_dir += '/train{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
   with tf.Graph().as_default():
     # Build model
     features = get_features('train', 64, num_gpus, data_dir, num_targets,
@@ -386,9 +406,10 @@ def evaluate(hparams, summary_dir, num_gpus, model_type, eval_size, data_dir,
     checkpoint: (optional) The checkpoint file name.
   """
   load_dir = summary_dir + '/train/'
-  summary_dir += '/test/'
+  #summary_dir += '/test/'
+  summary_dir += '/test{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
   with tf.Graph().as_default():
-    features = get_features('test', 100, num_gpus, data_dir, num_targets,
+    features = get_features('test', 64, num_gpus, data_dir, num_targets,
                             dataset, validate)
     model = models[model_type](hparams)
     result, _ = model.multi_gpu(features, num_gpus)
@@ -458,7 +479,7 @@ def get_placeholder_data(num_steps, batch_size, features, session):
 
 
 def infer_ensemble_logits(features, model, checkpoints, session, num_steps,
-                          data):
+                          data, writer):
   """Extracts the logits for the whole dataset and all the trained models.
 
   Loads all the checkpoints. For each checkpoint stores the logits for the whole
@@ -478,9 +499,15 @@ def infer_ensemble_logits(features, model, checkpoints, session, num_steps,
   _, inferred = model.multi_gpu([features], 1)
   logits = []
   saver = tf.train.Saver()
-  for checkpoint in checkpoints:
+  for ckptId, checkpoint in enumerate(checkpoints):
     saver.restore(session, checkpoint)
     for i in range(num_steps):
+      run_options = None
+      run_metadata = None
+      if i != 0 and i % 100 == 0:
+        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        run_metadata = tf.RunMetadata()
+        
       logits.append(
           session.run(
               inferred[0].logits,
@@ -489,11 +516,17 @@ def infer_ensemble_logits(features, model, checkpoints, session, num_steps,
                   features['labels']: data[i]['labels'],
                   features['images']: data[i]['images'],
                   features['recons_image']: data[i]['recons_image']
-              }))
+              }, options=run_options, run_metadata=run_metadata))
+      if i != 0 and i % 100 == 0:
+        writer.add_run_metadata(run_metadata, 'ckpt%03d step%03d' % (ckptId, i))
+        tl = timeline.Timeline(run_metadata.step_stats)
+        ctf = tl.generate_chrome_trace_format()
+        with open('timeline'+'ckpt%03d step%03d' % (ckptId, i)+'.json', 'w') as f:
+            f.write(ctf)
   return logits
 
 
-def evaluate_ensemble(hparams, model_type, eval_size, data_dir, num_targets,
+def evaluate_ensemble(hparams, summary_dir, model_type, eval_size, data_dir, num_targets,
                       dataset, checkpoint, num_trials):
   """Evaluates an ensemble of trained models.
 
@@ -511,6 +544,8 @@ def evaluate_ensemble(hparams, model_type, eval_size, data_dir, num_targets,
     checkpoint: The file format of the checkpoints to be loaded.
     num_trials: Number of trained models to ensemble.
   """
+  summary_dir += '/test{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
   checkpoints = []
   for i in range(num_trials):
     file_name = checkpoint.format(i)
@@ -518,19 +553,21 @@ def evaluate_ensemble(hparams, model_type, eval_size, data_dir, num_targets,
       checkpoints.append(file_name)
 
   with tf.Graph().as_default():
-    batch_size = 100
+    batch_size = 64
     features = get_features('test', batch_size, 1, data_dir, num_targets,
                             dataset)[0]
     model = models[model_type](hparams)
 
     session = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+    writer = tf.summary.FileWriter(summary_dir, session.graph, flush_secs=30)
+    
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=session, coord=coord)
     num_steps = eval_size // batch_size
     data, targets = get_placeholder_data(num_steps, batch_size, features,
                                          session)
     logits = infer_ensemble_logits(features, model, checkpoints, session,
-                                   num_steps, data)
+                                   num_steps, data, writer)
     coord.request_stop()
     coord.join(threads)
     session.close()
@@ -541,6 +578,7 @@ def evaluate_ensemble(hparams, model_type, eval_size, data_dir, num_targets,
     total_wrong = np.sum(np.not_equal(predictions, targets))
     print('Total wrong predictions: {}, wrong percent: {}%'.format(
         total_wrong, total_wrong / eval_size * 100))
+    writer.close()
 
 
 def default_hparams():
@@ -574,7 +612,7 @@ def main(_):
                FLAGS.eval_size, FLAGS.data_dir, FLAGS.num_targets,
                FLAGS.dataset, FLAGS.validate, FLAGS.checkpoint)
     else:
-      evaluate_ensemble(hparams, FLAGS.model, FLAGS.eval_size, FLAGS.data_dir,
+      evaluate_ensemble(hparams, FLAGS.summary_dir, FLAGS.model, FLAGS.eval_size, FLAGS.data_dir,
                         FLAGS.num_targets, FLAGS.dataset, FLAGS.checkpoint,
                         FLAGS.num_trials)
 

@@ -5,14 +5,56 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Cfar10 training",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--data_dir", "${workspaceFolder}/download/traindata/mnist_data/", 
-                "--max_steps", "300000",
-                "--summary_dir", "${workspaceFolder}/summary"]
+            "args": ["--data_dir=${workspaceFolder}/download/traindata/", 
+                "--max_steps=600000",
+                "--summary_dir=${workspaceFolder}/summary",
+                "--dataset=cifar10",
+                "--hparams_override=num_prime_capsules=64,padding=SAME,leaky=true,remake=false"]
+        },
+        {
+            "name": "Cfar10 ensemble inference",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--data_dir=${workspaceFolder}/download/traindata/", 
+                "--train=false",
+                "--dataset=cifar10",
+                "--hparams_override=num_prime_capsules=64,padding=SAME,leaky=true,remake=false",
+                "--summary_dir=${workspaceFolder}/summary",
+                "--checkpoint=${workspaceFolder}/download/checkpoint/cifar/cifar{}/model.ckpt-600000",
+                "--num_trials=7"
+            ]
+        },
+        {
+            "name": "Cfar10 inference",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--data_dir=${workspaceFolder}/download/traindata/", 
+                "--train=false",
+                "--dataset=cifar10",
+                "--hparams_override=num_prime_capsules=64,padding=SAME,leaky=true,remake=false",
+                "--summary_dir=${workspaceFolder}/summary",
+                "--checkpoint=${workspaceFolder}/download/checkpoint/cifar/cifar1/model.ckpt-600000"
+            ]
+        },
+        {
+            "name": "mnist training",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--data_dir=${workspaceFolder}/download/traindata/mnist_data",
+                "--summary_dir=${workspaceFolder}/summary",
+                "--max_steps=300000"
+            ]
         }
     ]
 }
