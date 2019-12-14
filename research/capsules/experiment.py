@@ -62,6 +62,9 @@ tf.flags.DEFINE_string('checkpoint', None,
 tf.flags.DEFINE_bool('train', True, 'Either train the model or test the model.')
 tf.flags.DEFINE_bool('validate', False, 'Run trianing/eval in validation mode.')
 
+tf.flags.DEFINE_string('summary_prefix', '',
+                       'The additional prefix for summary dir')
+
 models = {
     'capsule': capsule_model.CapsuleModel,
     'baseline': conv_model.ConvModel,
@@ -345,7 +348,7 @@ def train(hparams, summary_dir, num_gpus, model_type, max_steps, save_step,
     dataset: Name of the dataset for the experiments.
     validate: If set, use training-validation set for training.
   """
-  summary_dir += '/train{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+  summary_dir += '/train{}/{}{}'.format(dataset, FLAGS.summary_prefix, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
   with tf.Graph().as_default():
     # Build model
     features = get_features('train', 64, num_gpus, data_dir, num_targets,
@@ -407,7 +410,7 @@ def evaluate(hparams, summary_dir, num_gpus, model_type, eval_size, data_dir,
   """
   load_dir = summary_dir + '/train/'
   #summary_dir += '/test/'
-  summary_dir += '/test{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+  summary_dir += '/test{}/{}{}'.format(dataset, FLAGS.summary_prefix, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
   with tf.Graph().as_default():
     features = get_features('test', 64, num_gpus, data_dir, num_targets,
                             dataset, validate)
@@ -544,7 +547,7 @@ def evaluate_ensemble(hparams, summary_dir, model_type, eval_size, data_dir, num
     checkpoint: The file format of the checkpoints to be loaded.
     num_trials: Number of trained models to ensemble.
   """
-  summary_dir += '/test{}/{}'.format(dataset, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+  summary_dir += '/test{}/{}{}'.format(dataset, FLAGS.summary_prefix, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
   checkpoints = []
   for i in range(num_trials):
