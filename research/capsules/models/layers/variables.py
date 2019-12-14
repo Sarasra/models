@@ -45,7 +45,7 @@ def weight_variable(shape, stddev=0.1, verbose=False):
           initializer=tf.truncated_normal_initializer(
               stddev=stddev, dtype=tf.float32),
           dtype=tf.float32)
-  variable_summaries(weights, verbose)
+  #variable_summaries(weights, verbose)
   return weights
 
 
@@ -66,30 +66,8 @@ def bias_variable(shape, verbose=False):
           shape,
           initializer=tf.constant_initializer(0.1),
           dtype=tf.float32)
-  variable_summaries(biases, verbose)
+  # variable_summaries(biases, verbose)
   return biases
-
-
-def variable_summaries(var, verbose):
-  """Attaches a lot of summaries to a Tensor (for TensorBoard visualization).
-
-  Args:
-    var: tensor, statistic summaries of this tensor is added.
-    verbose: if set add histograms.
-  """
-  if verbose:
-    with tf.name_scope('summaries'):
-      mean = tf.reduce_mean(var)
-      tf.summary.scalar('mean', mean)
-
-      with tf.name_scope('stddev'):
-        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-      tf.summary.scalar('stddev', stddev)
-      tf.summary.scalar('max', tf.reduce_max(var))
-      tf.summary.scalar('min', tf.reduce_min(var))
-      tf.summary.histogram('histogram', var)
-  else:
-    pass
 
 
 def activation_summary(x, verbose):
